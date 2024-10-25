@@ -84,12 +84,6 @@ export default {
             isSuccessModalVisible: false,
             link: undefined,
             data_hora: undefined,
-            gapiReady: false,
-            CLIENT_ID: 'YOUR_CLIENT_ID.apps.googleusercontent.com', // Substitua pelo seu Client ID
-            API_KEY: 'AIzaSyA5OHQT5QZcEQTu4lrT71ga5-HS3cLJT0M', // Substitua pela sua API Key
-            SCOPES: "https://www.googleapis.com/auth/spreadsheets",
-            SPREADSHEET_ID: '14rHKdk3mLpkUh7ISJce_bDNKwNOgjBPUxWq9nF5xNG8', // Substitua pelo ID da sua planilha
-            RANGE: 'Sheet1!A1', // Ajuste o intervalo conforme necessário
         }
     },
     methods: {
@@ -119,52 +113,49 @@ export default {
                 this.isModalVisible = true;
             }
         },
-        initGAPI() {
-            gapi.load("client:auth2", () => {
-                gapi.client.init({
-                    apiKey: this.API_KEY,
-                    clientId: this.CLIENT_ID,
-                    scope: this.SCOPES,
-                    discoveryDocs: ["https://sheets.googleapis.com/$discovery/rest?version=v4"]
-                }).then(() => {
-                    this.gapiReady = true;
-                });
-            });
-        },
         async salvarPresenca() {
             try {
-                // ... seu código anterior ...
+                this.getMesAno();
+                // Verifica se os campos estão preenchidos
+                if (!this.nome_completo || !this.cpf || !this.imagemCapturada) {
+                    this.errorMessage = "Por favor, preencha todos os campos.";
+                    this.isModalVisible = true;
+                    return null;
+                }
 
-                if (this.gapiReady) {
-                    // Prepare os valores a serem enviados para a planilha
-                    const values = [
-                        [this.nome_completo, this.cpf.replace(/\D/g, ''), this.mes_referencia, this.ano_referencia, this.data_hora]
-                    ];
+                if (!this.cpfIsValid) {
+                    this.errorMessage = "O CPF digitado é inválido."
+                    this.isModalVisible = true;
+                    return null;
+                }
 
-                    const body = {
-                        values: values
-                    };
+                // Remove a formatação do CPF
+                const cpfSemFormatacao = this.cpf.replace(/\D/g, '');
 
-                    // Chamada para a API do Google Sheets
-                    const response = await gapi.client.sheets.spreadsheets.values.append({
-                        spreadsheetId: this.SPREADSHEET_ID,
-                        range: this.RANGE,
-                        valueInputOption: "RAW",
-                        resource: body
-                    });
+                // Cria um objeto FormData para enviar os dados incluindo o arquivo de imagem e localização
+                const formData = new FormData();
+                formData.append('cpf_colaborador', cpfSemFormatacao);
+                formData.append('nome_completo', this.nome_completo);
+                formData.append('foto', this.imagemCapturada);
+                formData.append('mes_referencia', this.mes_referencia);
+                formData.append('ano_referencia', this.ano_referencia);
+                formData.append('data_hora', this.data_hora);
 
-                    if (response.status === 200) {
-                        this.isSuccessModalVisible = true; // Define o modal de sucesso como visível
-                    } else {
-                        this.errorMessage = "Erro ao cadastrar presença na planilha. Por favor, tente novamente.";
-                        this.isModalVisible = true;
-                    }
+                const response = await axios.post(`${API_BASE_URL}/formulario/`, formData, {
+                    headers: {
+                        'Content-Type': 'multipart/form-data',
+                    },
+                });
+
+                // Verifica o status da resposta
+                if (response.status === 200) {
+                    this.isSuccessModalVisible = true; // Define o modal de sucesso como visível
                 } else {
-                    this.errorMessage = "API do Google não está pronta.";
+                    this.errorMessage = "Erro ao cadastrar presença. Por favor, tente novamente.";
                     this.isModalVisible = true;
                 }
             } catch (error) {
-                this.errorMessage = error.message || 'Ocorreu um erro desconhecido.';
+                this.errorMessage = error.response.data.errors[0] || 'Ocorreu um erro desconhecido.';
                 this.isModalVisible = true;
             }
         },
@@ -297,8 +288,6 @@ export default {
         },
     },
     mounted() {
-        this.initGAPI();
-
         const video = this.$refs.video;
 
         // Solicita permissão para acessar a câmera
