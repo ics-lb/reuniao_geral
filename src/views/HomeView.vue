@@ -1,9 +1,7 @@
 <template>
   <div>
-    <div v-if="visibilidade === true">
-      <Form />
-    </div>
-    <div class="sem-visibilidade" v-else-if="visibilidade === false">
+    <Form />
+    <!--  <div class="sem-visibilidade" v-else-if="visibilidade === false">
       <div>
         <div class="d-flex justify-content-center">
           <img class="w-50" src="../components/icons/bloqueado.png" alt="error" />
@@ -12,7 +10,7 @@
           <h2>O formulário não está disponível.</h2>
         </div>
       </div>
-    </div>
+    </div> -->
   </div>
 </template>
 
